@@ -10,10 +10,16 @@ export default function AnonymizePanel() {
   const [entities, setEntities] = useState<DetectedEntity[]>([]);
   const [dictionary, setDictionary] = useState<DictionaryItem[]>([]);
   const [copied, setCopied] = useState(false);
+  const [isReidentified, setIsReidentified] = useState(false);
 
   useEffect(() => {
     getDictionary().then(setDictionary);
   }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    if (entities.length > 0) setEntities([]);
+  };
 
   const handleAnonymize = () => {
     if (!input.trim()) return;
@@ -21,12 +27,14 @@ export default function AnonymizePanel() {
     const result = anonymize(input, SESSION_KEY, dictionary);
     setOutput(result.anonymizedText);
     setEntities(result.entities);
+    setIsReidentified(false);
   };
 
   const handleReidentify = () => {
-    if (!output) return;
+    if (!output || isReidentified) return;
     setOutput(reidentify(output, SESSION_KEY));
     setEntities([]);
+    setIsReidentified(true);
   };
 
   const handleCopy = async () => {
@@ -39,6 +47,7 @@ export default function AnonymizePanel() {
     setInput("");
     setOutput("");
     setEntities([]);
+    setIsReidentified(false);
     clearSessionMapping(SESSION_KEY);
   };
 
@@ -48,7 +57,7 @@ export default function AnonymizePanel() {
       <textarea
         placeholder="Text mit sensiblen Daten hier einfügen…"
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={handleInputChange}
         rows={7}
       />
 
@@ -73,8 +82,8 @@ export default function AnonymizePanel() {
           </div>
 
           <div className="btn-row">
-            <button className="btn btn-ghost" onClick={handleReidentify}>
-              Re-Identifizieren
+            <button className="btn btn-ghost" onClick={handleReidentify} disabled={isReidentified}>
+              {isReidentified ? "Re-Identifiziert ✓" : "Re-Identifizieren"}
             </button>
           </div>
         </>

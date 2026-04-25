@@ -19,7 +19,8 @@ export default function DictionaryPanel() {
 
   const handleAdd = async () => {
     if (!term.trim()) return;
-    const updated = addDictionaryItem(items, { term: term.trim(), category, isRegex });
+    const cat = category.trim() || "CUSTOM";
+    const updated = addDictionaryItem(items, { term: term.trim(), category: cat.toUpperCase(), isRegex });
     setItems(updated);
     await saveDictionary(updated);
     setTerm("");
