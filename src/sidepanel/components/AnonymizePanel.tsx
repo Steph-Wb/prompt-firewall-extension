@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { anonymize, reidentify, clearSessionMapping, type DetectedEntity } from "@/core/anonymizer";
 import { getDictionary, type DictionaryItem } from "@/core/storage";
 
@@ -12,9 +12,46 @@ export default function AnonymizePanel() {
   const [copied, setCopied] = useState(false);
   const [isReidentified, setIsReidentified] = useState(false);
 
-  useEffect(() => {
-    getDictionary().then(setDictionary);
+  const runAnonymize = useCallback((text: string, dict: DictionaryItem[]) => {
+    clearSessionMapping(SESSION_KEY);
+    const result = anonymize(text, SESSION_KEY, dict);
+    setInput(text);
+    setOutput(result.anonymizedText);
+    setEntities(result.entities);
+    setIsReidentified(false);
   }, []);
+
+  // On mount: load dictionary + check for pending text from content script
+  useEffect(() => {
+    Promise.all([
+      getDictionary(),
+      chrome.storage.session.get("pf_pending"),
+    ]).then(([dict, stored]) => {
+      setDictionary(dict);
+      const pending = stored.pf_pending as string | undefined;
+      if (pending) {
+        chrome.storage.session.remove("pf_pending");
+        runAnonymize(pending, dict);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // While panel is open: react to new pending text (e.g. user clicks FAB again)
+  useEffect(() => {
+    const handler = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string
+    ) => {
+      if (area === "session" && changes.pf_pending?.newValue) {
+        const pending = changes.pf_pending.newValue as string;
+        chrome.storage.session.remove("pf_pending");
+        runAnonymize(pending, dictionary);
+      }
+    };
+    chrome.storage.onChanged.addListener(handler);
+    return () => chrome.storage.onChanged.removeListener(handler);
+  }, [dictionary, runAnonymize]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -23,11 +60,7 @@ export default function AnonymizePanel() {
 
   const handleAnonymize = () => {
     if (!input.trim()) return;
-    clearSessionMapping(SESSION_KEY);
-    const result = anonymize(input, SESSION_KEY, dictionary);
-    setOutput(result.anonymizedText);
-    setEntities(result.entities);
-    setIsReidentified(false);
+    runAnonymize(input, dictionary);
   };
 
   const handleReidentify = () => {
@@ -105,7 +138,7 @@ export default function AnonymizePanel() {
       )}
 
       {!output && !input && (
-        <p className="empty">Füge Text ein und klicke auf „Anonymisieren".</p>
+        <p className="empty">Füge Text ein – oder klicke auf der KI-Seite auf „🔒 Anonymisieren".</p>
       )}
     </div>
   );
