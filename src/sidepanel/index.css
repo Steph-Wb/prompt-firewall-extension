@@ -146,6 +146,28 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
 /* ── Section labels ── */
 .label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
+/* ── Section headers (numbered steps) ── */
+.section-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.section-header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.section-hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.section-hint code { background: var(--border); border-radius: 3px; padding: 1px 4px; font-size: 10px; }
+
 /* ── Dictionary list ── */
 .dict-item {
   display: flex;

@@ -385,6 +385,18 @@ export function reidentify(text: string, sessionKey: string): string {
   return result;
 }
 
+export function getSessionCounters(sessionKey: string): Map<string, number> {
+  return sessionCounters.get(sessionKey) ?? new Map();
+}
+
+export function setSessionMapping(sessionKey: string, mapping: SessionMapping): void {
+  sessionMappings.set(sessionKey, { ...mapping });
+}
+
+export function setSessionCounters(sessionKey: string, counters: Map<string, number>): void {
+  sessionCounters.set(sessionKey, new Map(counters));
+}
+
 export function previewAnonymization(
   text: string,
   sessionKey: string,
