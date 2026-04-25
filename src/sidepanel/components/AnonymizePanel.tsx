@@ -58,8 +58,10 @@ export default function AnonymizePanel() {
     if (entities.length > 0) setEntities([]);
   };
 
+  const inputTooLarge = input.length > 30_000;
+
   const handleAnonymize = () => {
-    if (!input.trim()) return;
+    if (!input.trim() || inputTooLarge) return;
     runAnonymize(input, dictionary);
   };
 
@@ -92,10 +94,21 @@ export default function AnonymizePanel() {
         value={input}
         onChange={handleInputChange}
         rows={7}
+        aria-label="Eingabetext zur Anonymisierung"
       />
+      {inputTooLarge && (
+        <p className="error-msg" role="alert">
+          Text zu lang ({input.length.toLocaleString("de")} Zeichen). Bitte maximal 30.000 Zeichen eingeben.
+        </p>
+      )}
 
       <div className="btn-row">
-        <button className="btn btn-primary" onClick={handleAnonymize} disabled={!input.trim()}>
+        <button
+          className="btn btn-primary"
+          onClick={handleAnonymize}
+          disabled={!input.trim() || inputTooLarge}
+          aria-label="Text anonymisieren"
+        >
           Anonymisieren
         </button>
         <button className="btn btn-ghost" onClick={handleReset}>
@@ -107,7 +120,7 @@ export default function AnonymizePanel() {
         <>
           <hr className="divider" />
           <div className="label">Anonymisierter Text</div>
-          <div className="output-box">
+          <div className="output-box" aria-live="polite" aria-label="Anonymisierter Text">
             {output}
             <button className="btn btn-ghost copy-btn" onClick={handleCopy}>
               {copied ? "Kopiert ✓" : "Kopieren"}
