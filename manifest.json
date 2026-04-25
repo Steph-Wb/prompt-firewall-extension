@@ -43,5 +43,14 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "commands": {
+    "anonymize_current_input": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+A",
+        "mac": "MacCtrl+Shift+A"
+      },
+      "description": "Aktuellen Chat-Eingabetext in Prompt Firewall laden"
+    }
   }
 }

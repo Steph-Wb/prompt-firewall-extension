@@ -1,10 +1,7 @@
-// chrome.storage.local wrappers – replaces the DB layer from the web-app MVP
+// chrome.storage.local wrappers
 
 export interface Settings {
   language: "de" | "en";
-  llmProvider: "openai" | "anthropic" | "none";
-  apiKey: string;
-  model: string;
 }
 
 export interface DictionaryItem {
@@ -22,9 +19,6 @@ const KEYS = {
 
 const DEFAULT_SETTINGS: Settings = {
   language: "de",
-  llmProvider: "none",
-  apiKey: "",
-  model: "",
 };
 
 function get<T>(key: string, fallback: T): Promise<T> {
@@ -57,8 +51,7 @@ export function addDictionaryItem(
   items: DictionaryItem[],
   item: Omit<DictionaryItem, "id">
 ): DictionaryItem[] {
-  const newItem: DictionaryItem = { ...item, id: crypto.randomUUID() };
-  return [...items, newItem];
+  return [...items, { ...item, id: crypto.randomUUID() }];
 }
 
 export function removeDictionaryItem(

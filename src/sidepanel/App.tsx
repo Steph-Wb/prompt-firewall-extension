@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AnonymizePanel from "./components/AnonymizePanel";
 import DictionaryPanel from "./components/DictionaryPanel";
 import SettingsPanel from "./components/SettingsPanel";
@@ -7,6 +7,20 @@ type Tab = "anonymize" | "dictionary" | "settings";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("anonymize");
+
+  // Auto-switch to Anonymize tab when content script sends pending text
+  useEffect(() => {
+    const handler = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string
+    ) => {
+      if (area === "session" && changes.pf_pending?.newValue) {
+        setTab("anonymize");
+      }
+    };
+    chrome.storage.onChanged.addListener(handler);
+    return () => chrome.storage.onChanged.removeListener(handler);
+  }, []);
 
   return (
     <>
