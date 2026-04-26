@@ -3,6 +3,7 @@ import {
   anonymize, reidentify, clearAllMappings,
   getSessionMapping, getSessionCounters,
   setSessionMapping, setSessionCounters,
+  addToSessionMapping, removeFromSessionMapping,
 } from "../src/core/anonymizer";
 
 const KEY = "test";
@@ -125,6 +126,37 @@ describe("AI-Antwort Re-Identifizierung", () => {
     const result = reidentify(aiResponse, KEY);
     expect(result).not.toContain("[[PERSON_1]]");
     expect(result).toContain("[[UNBEKANNT_99]]");
+  });
+});
+
+describe("Manuelle Selektion anonymisieren / un-anonymisieren", () => {
+  it("fügt manuell selektierten Text als neuen Platzhalter hinzu", () => {
+    // Use a term the anonymizer won't catch automatically
+    const { anonymizedText } = anonymize("Der Projektcode lautet ProjectX123.", KEY);
+    const placeholder = addToSessionMapping(KEY, "ProjectX123");
+    expect(placeholder).toMatch(/^\[\[CUSTOM_\d+\]\]$/);
+    const newOutput = anonymizedText.replace(/ProjectX123/g, placeholder);
+    expect(newOutput).not.toContain("ProjectX123");
+    expect(reidentify(newOutput, KEY)).toContain("ProjectX123");
+  });
+
+  it("gibt bestehenden Platzhalter zurück wenn Text bereits gemappt ist", () => {
+    anonymize("test@example.com", KEY);
+    const mapping = getSessionMapping(KEY);
+    const existingPh = Object.keys(mapping)[0];
+    const original = mapping[existingPh];
+    // Calling addToSessionMapping for same value returns existing placeholder
+    const ph = addToSessionMapping(KEY, original);
+    expect(ph).toBe(existingPh);
+  });
+
+  it("entfernt Platzhalter aus dem Mapping (un-anonymisieren)", () => {
+    anonymize("hans@firma.de", KEY);
+    const mapping = getSessionMapping(KEY);
+    const ph = Object.keys(mapping).find((k) => mapping[k] === "hans@firma.de")!;
+    expect(ph).toBeTruthy();
+    removeFromSessionMapping(KEY, ph);
+    expect(getSessionMapping(KEY)[ph]).toBeUndefined();
   });
 });
 

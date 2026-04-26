@@ -2,7 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import AnonymizePanel from "./components/AnonymizePanel";
 import DictionaryPanel from "./components/DictionaryPanel";
 import SettingsPanel from "./components/SettingsPanel";
-import { anonymize, clearSessionMapping, reidentify, type DetectedEntity } from "@/core/anonymizer";
+import {
+  anonymize, clearSessionMapping, reidentify,
+  addToSessionMapping, removeFromSessionMapping, getSessionMapping,
+  type DetectedEntity,
+} from "@/core/anonymizer";
 import { getDictionary, type DictionaryItem } from "@/core/storage";
 import { persistAll, restoreAll, clearAll, type WorkflowState } from "@/core/sessionStore";
 
@@ -109,6 +113,37 @@ export default function App() {
     persistAll(SESSION_KEY, { input, output, entities, aiResponse: responseText, reidentified: result });
   };
 
+  // User selects text in the output box → immediately replace with a new placeholder
+  const handleAddSelection = (selectedText: string) => {
+    if (!selectedText.trim() || !output.includes(selectedText)) return;
+    const placeholder = addToSessionMapping(SESSION_KEY, selectedText);
+    const escaped = selectedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const newOutput = output.replace(new RegExp(escaped, "g"), placeholder);
+    const newEntity: DetectedEntity = {
+      type: "CUSTOM",
+      original: selectedText,
+      placeholder,
+      start: -1,
+      end: -1,
+    };
+    const newEntities = [...entities.filter((e) => e.placeholder !== placeholder), newEntity];
+    setOutput(newOutput);
+    setEntities(newEntities);
+    persistAll(SESSION_KEY, { input, output: newOutput, entities: newEntities, aiResponse, reidentified });
+  };
+
+  // User clicks a placeholder in the output box → restore original value and remove from mapping
+  const handleUnAnonymize = (placeholder: string) => {
+    const originalValue = getSessionMapping(SESSION_KEY)[placeholder];
+    if (!originalValue) return;
+    removeFromSessionMapping(SESSION_KEY, placeholder);
+    const newOutput = output.split(placeholder).join(originalValue);
+    const newEntities = entities.filter((e) => e.placeholder !== placeholder);
+    setOutput(newOutput);
+    setEntities(newEntities);
+    persistAll(SESSION_KEY, { input, output: newOutput, entities: newEntities, aiResponse, reidentified });
+  };
+
   const handleReset = async () => {
     clearSessionMapping(SESSION_KEY);
     setInput("");
@@ -146,6 +181,8 @@ export default function App() {
           onRunAnonymize={handleRunAnonymize}
           onAiResponseChange={handleAiResponseChange}
           onReidentifyResponse={handleReidentifyResponse}
+          onAddSelection={handleAddSelection}
+          onUnAnonymize={handleUnAnonymize}
           onReset={handleReset}
         />
       )}
