@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { getSettings, saveSettings, type Settings } from "@/core/storage";
+import { useT } from "@/i18n";
 
 export default function SettingsPanel() {
+  const T = useT();
   const [language, setLanguage] = useState<Settings["language"]>("de");
   const [saved, setSaved] = useState(false);
 
@@ -18,25 +20,24 @@ export default function SettingsPanel() {
   return (
     <div className="panel">
       <div className="settings-row">
-        <label htmlFor="lang-select">Sprache der Anonymisierung</label>
+        <label htmlFor="lang-select">{T("settings.language.label")}</label>
         <select
           id="lang-select"
           value={language}
           onChange={(e) => setLanguage(e.target.value as Settings["language"])}
         >
-          <option value="de">Deutsch (DACH)</option>
-          <option value="en">English (coming soon)</option>
+          <option value="de">{T("lang.de")}</option>
+          <option value="en">{T("lang.en")}</option>
         </select>
       </div>
 
-      <button className="btn btn-primary" onClick={handleSave} aria-label="Einstellungen speichern">
-        {saved ? "Gespeichert ✓" : "Einstellungen speichern"}
+      <button className="btn btn-primary" onClick={handleSave} aria-label={T("settings.save")}>
+        {saved ? T("settings.saved") : T("settings.save")}
       </button>
 
       <hr className="divider" />
       <p style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.6 }}>
-        Alle Daten bleiben lokal in deinem Browser. Es werden keine Informationen
-        an externe Server gesendet.
+        {T("settings.privacy")}
       </p>
     </div>
   );

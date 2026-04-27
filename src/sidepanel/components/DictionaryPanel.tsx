@@ -6,6 +6,7 @@ import {
   removeDictionaryItem,
   type DictionaryItem,
 } from "@/core/storage";
+import { useT } from "@/i18n";
 
 function validateRegex(pattern: string): string | null {
   try {
@@ -17,6 +18,7 @@ function validateRegex(pattern: string): string | null {
 }
 
 export default function DictionaryPanel() {
+  const T = useT();
   const [items, setItems] = useState<DictionaryItem[]>([]);
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("CUSTOM");
@@ -68,27 +70,27 @@ export default function DictionaryPanel() {
 
   return (
     <div className="panel">
-      <div className="label">Neuer Eintrag</div>
+      <div className="label">{T("dict.new")}</div>
 
       <input
         type="text"
-        placeholder="Begriff oder Regex-Pattern"
+        placeholder={T("dict.term.placeholder")}
         value={term}
-        aria-label="Begriff oder Regex-Pattern"
+        aria-label={T("dict.term.placeholder")}
         aria-invalid={regexError ? "true" : "false"}
         onChange={(e) => handleTermChange(e.target.value)}
         onKeyDown={handleKeyDown}
       />
       {regexError && (
-        <p className="error-msg" role="alert">Ungültiger Regex: {regexError}</p>
+        <p className="error-msg" role="alert">{T("dict.error.regex", { error: regexError })}</p>
       )}
 
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <input
           type="text"
-          placeholder="Kategorie (z. B. MANDANT)"
+          placeholder={T("dict.category.placeholder")}
           value={category}
-          aria-label="Kategorie"
+          aria-label={T("dict.category.placeholder")}
           onChange={(e) => setCategory(e.target.value)}
           onKeyDown={handleKeyDown}
           style={{ flex: 1 }}
@@ -97,13 +99,13 @@ export default function DictionaryPanel() {
           <input
             type="checkbox"
             checked={isRegex}
-            aria-label="Als regulären Ausdruck behandeln"
+            aria-label={T("dict.regex.label")}
             onChange={(e) => {
               setIsRegex(e.target.checked);
               setRegexError(null);
             }}
           />
-          Regex
+          {T("dict.regex.label")}
         </label>
       </div>
 
@@ -111,27 +113,27 @@ export default function DictionaryPanel() {
         className="btn btn-primary"
         onClick={handleAdd}
         disabled={!term.trim()}
-        aria-label="Eintrag hinzufügen"
+        aria-label={T("btn.add")}
       >
-        Hinzufügen
+        {T("btn.add")}
       </button>
 
       <hr className="divider" />
-      <div className="label">Einträge ({items.length})</div>
+      <div className="label">{T("dict.entries", { count: items.length })}</div>
 
       {items.length === 0 ? (
-        <p className="empty">Noch keine benutzerdefinierten Begriffe.</p>
+        <p className="empty">{T("dict.empty")}</p>
       ) : (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
           {items.map((item) => (
             <li key={item.id} className="dict-item">
               <span className="term">{item.term}</span>
-              {item.isRegex && <span className="regex-badge">Regex</span>}
+              {item.isRegex && <span className="regex-badge">{T("dict.regex.label")}</span>}
               <span className="category">{item.category}</span>
               <button
                 className="btn btn-danger"
                 style={{ padding: "3px 8px", fontSize: 11, marginLeft: "auto" }}
-                aria-label={`${item.term} entfernen`}
+                aria-label={T("dict.remove", { term: item.term })}
                 onClick={() => handleRemove(item.id)}
               >
                 ✕
