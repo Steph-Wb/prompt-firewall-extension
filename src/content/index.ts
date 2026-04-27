@@ -26,8 +26,9 @@ async function captureAndSend(selector: string): Promise<void> {
   if (!el) return;
   const text = getTextFromElement(el).trim();
   if (!text) return;
-  await chrome.storage.session.set({ pf_pending: text });
-  chrome.runtime.sendMessage({ type: "OPEN_WITH_TEXT" });
+  // Send text to the service worker — it stores it in session storage (trusted context)
+  // and opens the panel. Content scripts cannot reliably access chrome.storage.session.
+  chrome.runtime.sendMessage({ type: "OPEN_WITH_TEXT", text });
 }
 
 function injectFab(selector: string): void {
