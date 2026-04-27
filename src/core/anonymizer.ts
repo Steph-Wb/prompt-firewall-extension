@@ -157,7 +157,89 @@ function applyRegexPatterns(
   return { text: result, entities };
 }
 
-// ─── Schicht 2: NER-Simulation ────────────────────────────────────────────
+// ─── Schicht 2: NER-Simulation (English) ─────────────────────────────────
+
+const ENGLISH_NAME_PATTERNS = [
+  /(?:Mr\.|Mrs\.|Ms\.|Miss|Dr\.|Prof\.)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?/g,
+  /(?:Attorney|Counsel|Lawyer|Advocate)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?/g,
+  /(?:Client|Plaintiff|Defendant|Claimant|Petitioner|Respondent)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?/g,
+];
+
+const ENGLISH_ORG_PATTERNS = [
+  /(?:Law\s+Firm|Company|Corporation|Association|Foundation|Institute|Agency)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]*)*/g,
+];
+
+const ENGLISH_LOCATION_PATTERNS = [
+  /\d+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+(?:Street|St\.|Avenue|Ave\.|Road|Rd\.|Boulevard|Blvd\.|Drive|Dr\.|Lane|Ln\.|Court|Ct\.|Way|Place|Pl\.)/gi,
+];
+
+function applyEnglishNerPatterns(
+  text: string,
+  sessionKey: string
+): { text: string; entities: DetectedEntity[] } {
+  const nerMatches: Array<{ type: string; match: string; start: number; end: number }> = [];
+
+  for (const pattern of ENGLISH_NAME_PATTERNS) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const fullMatch = match[0];
+      const nameOnly = fullMatch.replace(
+        /^(?:Mr\.|Mrs\.|Ms\.|Miss|Dr\.|Prof\.|Attorney|Counsel|Lawyer|Advocate|Client|Plaintiff|Defendant|Claimant|Petitioner|Respondent)\s+/,
+        ""
+      );
+      if (nameOnly.length > 2) {
+        nerMatches.push({
+          type: "PERSON",
+          match: nameOnly,
+          start: match.index + (fullMatch.length - nameOnly.length),
+          end: match.index + fullMatch.length,
+        });
+      }
+    }
+  }
+
+  for (const pattern of ENGLISH_ORG_PATTERNS) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      nerMatches.push({ type: "ORG", match: match[0], start: match.index, end: match.index + match[0].length });
+    }
+  }
+
+  for (const pattern of ENGLISH_LOCATION_PATTERNS) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      nerMatches.push({ type: "ADDRESS", match: match[0], start: match.index, end: match.index + match[0].length });
+    }
+  }
+
+  nerMatches.sort((a, b) => b.start - a.start);
+  const filteredMatches: typeof nerMatches = [];
+  for (const m of nerMatches) {
+    if (!filteredMatches.some((e) => m.start < e.end && m.end > e.start)) {
+      filteredMatches.push(m);
+    }
+  }
+
+  const entities: DetectedEntity[] = [];
+  let result = text;
+
+  for (const { type, match, start, end } of filteredMatches) {
+    let placeholder = findExistingPlaceholder(sessionKey, match);
+    if (!placeholder) {
+      placeholder = getNextPlaceholder(sessionKey, type);
+      getSessionMapping(sessionKey)[placeholder] = match;
+    }
+    entities.push({ type, original: match, placeholder, start, end });
+    result = result.substring(0, start) + placeholder + result.substring(end);
+  }
+
+  return { text: result, entities };
+}
+
+// ─── Schicht 2: NER-Simulation (German) ──────────────────────────────────
 
 const GERMAN_NAME_PATTERNS = [
   /(?:Herr|Frau|Hr\.|Fr\.)\s+(?:Dr\.\s+)?(?:(?:von|van|de|zu)\s+)?[A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)?/g,
@@ -350,18 +432,37 @@ function applyDictionary(
   return { text: result, entities };
 }
 
+// ─── English-specific regex patterns ──────────────────────────────────────
+
+const ENGLISH_EXTRA_PATTERNS: RegexPattern[] = [
+  { type: "SSN", pattern: /\b\d{3}[-\s]\d{2}[-\s]\d{4}\b/g },
+  { type: "DATUM", pattern: /\b(?:0?[1-9]|1[0-2])\/(?:0?[1-9]|[12]\d|3[01])\/(?:19|20)\d{2}\b/g },
+];
+
 // ─── Main Pipeline ────────────────────────────────────────────────────────
 
 export function anonymize(
   text: string,
   sessionKey: string,
-  dictionary: DictionaryEntry[] = []
+  dictionary: DictionaryEntry[] = [],
+  language: "de" | "en" = "de"
 ): AnonymizationResult {
   const dictResult = applyDictionary(text, sessionKey, dictionary);
-  const regexResult = applyRegexPatterns(dictResult.text, sessionKey);
-  const nerResult = applyNerPatterns(regexResult.text, sessionKey);
-  const nameListResult = applyNameListDetection(nerResult.text, sessionKey);
-  const leakCheck = applyRegexPatterns(nameListResult.text, sessionKey);
+  const extraPatterns = language === "en" ? ENGLISH_EXTRA_PATTERNS : [];
+  const regexResult = applyRegexPatterns(dictResult.text, sessionKey, extraPatterns);
+
+  let nerResult: ReturnType<typeof applyNerPatterns>;
+  let nameListResult: ReturnType<typeof applyNameListDetection>;
+
+  if (language === "en") {
+    nerResult = applyEnglishNerPatterns(regexResult.text, sessionKey);
+    nameListResult = { text: nerResult.text, entities: [] };
+  } else {
+    nerResult = applyNerPatterns(regexResult.text, sessionKey);
+    nameListResult = applyNameListDetection(nerResult.text, sessionKey);
+  }
+
+  const leakCheck = applyRegexPatterns(nameListResult.text, sessionKey, extraPatterns);
 
   return {
     anonymizedText: leakCheck.text,
@@ -416,7 +517,8 @@ export function removeFromSessionMapping(sessionKey: string, placeholder: string
 export function previewAnonymization(
   text: string,
   sessionKey: string,
-  dictionary: DictionaryEntry[] = []
+  dictionary: DictionaryEntry[] = [],
+  language: "de" | "en" = "de"
 ): AnonymizationResult {
   const tempKey = `preview_${sessionKey}_${Date.now()}`;
   const existingMapping = getSessionMapping(sessionKey);
@@ -424,7 +526,7 @@ export function previewAnonymization(
   if (sessionCounters.has(sessionKey)) {
     sessionCounters.set(tempKey, new Map(sessionCounters.get(sessionKey)!));
   }
-  const result = anonymize(text, tempKey, dictionary);
+  const result = anonymize(text, tempKey, dictionary, language);
   clearSessionMapping(tempKey);
   return result;
 }

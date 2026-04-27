@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { type DetectedEntity } from "@/core/anonymizer";
+import { useT } from "@/i18n";
 
 // Regex that matches any [[TYPE_N]] placeholder
 const PLACEHOLDER_RE = /(\[\[[^\]]+\]\])/;
@@ -32,11 +33,10 @@ export default function AnonymizePanel({
   onInputChange, onRunAnonymize, onAiResponseChange,
   onReidentifyResponse, onAddSelection, onUnAnonymize, onReset,
 }: Props) {
+  const T = useT();
   const [copiedOutput, setCopiedOutput] = useState(false);
   const [copiedReidentified, setCopiedReidentified] = useState(false);
-  // Text the user has selected inside the output box
   const [textSelection, setTextSelection] = useState<string | null>(null);
-  // Placeholder currently "focused" (clicked) for un-anonymization
   const [activePlaceholder, setActivePlaceholder] = useState<string | null>(null);
 
   const outputRef = useRef<HTMLDivElement>(null);
@@ -45,7 +45,6 @@ export default function AnonymizePanel({
   // ── Output box interactions ────────────────────────────────────────────────
 
   const handleOutputMouseUp = () => {
-    // If a placeholder is active, clicking plain text deselects it
     setActivePlaceholder(null);
 
     const sel = window.getSelection();
@@ -53,7 +52,6 @@ export default function AnonymizePanel({
       setTextSelection(null);
       return;
     }
-    // Only accept selection fully inside the output box
     if (
       !outputRef.current.contains(sel.anchorNode) ||
       !outputRef.current.contains(sel.focusNode)
@@ -62,7 +60,6 @@ export default function AnonymizePanel({
       return;
     }
     const text = sel.toString().trim();
-    // Reject empty or selections that span into a placeholder pattern
     if (!text || /\[\[/.test(text)) {
       setTextSelection(null);
       return;
@@ -108,18 +105,18 @@ export default function AnonymizePanel({
   return (
     <div className="panel">
 
-      {/* ── Sektion 1: Eingabe ───────────────────────────────────────── */}
-      <div className="section-header">1 · Eingabe</div>
+      {/* ── Section 1: Input ─────────────────────────────────────────────── */}
+      <div className="section-header">{T("sec.input")}</div>
       <textarea
-        placeholder="Text mit sensiblen Daten hier einfügen…"
+        placeholder={T("input.placeholder")}
         value={input}
         onChange={(e) => onInputChange(e.target.value)}
         rows={6}
-        aria-label="Eingabetext zur Anonymisierung"
+        aria-label={T("input.placeholder")}
       />
       {inputTooLarge && (
         <p className="error-msg" role="alert">
-          Text zu lang ({input.length.toLocaleString("de")} Zeichen). Max. 30.000 Zeichen.
+          {T("input.toolarge", { count: input.length })}
         </p>
       )}
       <div className="btn-row">
@@ -128,29 +125,26 @@ export default function AnonymizePanel({
           onClick={() => onRunAnonymize(input)}
           disabled={!input.trim() || inputTooLarge}
         >
-          Anonymisieren
+          {T("btn.anonymize")}
         </button>
         <button className="btn btn-ghost" onClick={onReset}>
-          Zurücksetzen
+          {T("btn.reset")}
         </button>
       </div>
 
-      {/* ── Sektion 2: Anonymisierter Text ──────────────────────────── */}
+      {/* ── Section 2: Anonymized output ─────────────────────────────────── */}
       {output && (
         <>
-          <div className="section-header">2 · Anonymisierter Text</div>
-          <p className="section-hint">
-            Wörter <strong>markieren</strong> → anonymisieren · Platzhalter <strong>anklicken</strong> → aufheben
-          </p>
+          <div className="section-header">{T("sec.output")}</div>
+          <p className="section-hint">{T("hint.interactive")}</p>
 
-          {/* Contextual action bar — shown only when something is selected/active */}
           {(textSelection || activePlaceholder) && (
             <div className="selection-bar">
               {textSelection && (
                 <>
                   <span className="selected-text">„{textSelection}"</span>
                   <button className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={handleAddSelectionClick}>
-                    Anonymisieren
+                    {T("selection.anonymize")}
                   </button>
                   <button className="btn btn-ghost" style={{ padding: "4px 8px", fontSize: 11 }} onClick={() => { window.getSelection()?.removeAllRanges(); setTextSelection(null); }}>
                     ✕
@@ -161,7 +155,7 @@ export default function AnonymizePanel({
                 <>
                   <span className="selected-text">{activePlaceholder}</span>
                   <button className="btn btn-danger" style={{ padding: "4px 10px", fontSize: 11 }} onClick={handleUnAnonymizeClick}>
-                    Un-Anonymisieren
+                    {T("selection.unanonymize")}
                   </button>
                   <button className="btn btn-ghost" style={{ padding: "4px 8px", fontSize: 11 }} onClick={() => setActivePlaceholder(null)}>
                     ✕
@@ -183,7 +177,7 @@ export default function AnonymizePanel({
                   key={i}
                   className={`placeholder-tag${activePlaceholder === seg.content ? " active" : ""}`}
                   onClick={() => handlePlaceholderClick(seg.content)}
-                  title="Klicken zum Un-Anonymisieren"
+                  title={T("selection.unanonymize")}
                 >
                   {seg.content}
                 </button>
@@ -192,13 +186,13 @@ export default function AnonymizePanel({
               )
             )}
             <button className="btn btn-ghost copy-btn" onClick={handleCopyOutput}>
-              {copiedOutput ? "Kopiert ✓" : "Kopieren"}
+              {copiedOutput ? T("btn.copied") : T("btn.copy")}
             </button>
           </div>
 
           {entities.length > 0 && (
             <>
-              <div className="label">Erkannte Entitäten ({entities.length})</div>
+              <div className="label">{T("label.entities", { count: entities.length })}</div>
               <div className="entity-list">
                 {entities.map((e, i) => (
                   <span key={i} className="entity-badge">
@@ -211,17 +205,15 @@ export default function AnonymizePanel({
             </>
           )}
 
-          {/* ── Sektion 3: AI-Antwort re-identifizieren ─────────────── */}
-          <div className="section-header">3 · AI-Antwort re-identifizieren</div>
-          <p className="section-hint">
-            Antwort von ChatGPT / Claude einfügen – <code>[[PERSON_1]]</code> wird durch echte Werte ersetzt.
-          </p>
+          {/* ── Section 3: Re-identify AI response ───────────────────────── */}
+          <div className="section-header">{T("sec.reidentify")}</div>
+          <p className="section-hint">{T("hint.reidentify")}</p>
           <textarea
-            placeholder="Antwort der KI hier einfügen…"
+            placeholder={T("ai.placeholder")}
             value={aiResponse}
             onChange={(e) => onAiResponseChange(e.target.value)}
             rows={5}
-            aria-label="AI-Antwort zur Re-Identifizierung"
+            aria-label={T("ai.placeholder")}
           />
           <div className="btn-row">
             <button
@@ -229,17 +221,17 @@ export default function AnonymizePanel({
               onClick={() => onReidentifyResponse(aiResponse)}
               disabled={!aiResponse.trim()}
             >
-              Re-Identifizieren
+              {T("btn.reidentify")}
             </button>
           </div>
 
           {reidentified && (
             <>
-              <div className="label">Re-identifizierte Antwort</div>
+              <div className="label">{T("label.reidentified")}</div>
               <div className="output-box" aria-live="polite">
                 {reidentified}
                 <button className="btn btn-ghost copy-btn" onClick={handleCopyReidentified}>
-                  {copiedReidentified ? "Kopiert ✓" : "Kopieren"}
+                  {copiedReidentified ? T("btn.copied") : T("btn.copy")}
                 </button>
               </div>
             </>
@@ -248,9 +240,7 @@ export default function AnonymizePanel({
       )}
 
       {!output && !input && (
-        <p className="empty">
-          Füge Text ein – oder klicke auf der KI-Seite auf „🔒 Anonymisieren".
-        </p>
+        <p className="empty">{T("empty.hint")}</p>
       )}
     </div>
   );
