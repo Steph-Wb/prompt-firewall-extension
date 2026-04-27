@@ -1,8 +1,3 @@
-// Grant content scripts access to session storage (needed for IPC)
-chrome.storage.session.setAccessLevel({
-  accessLevel: chrome.storage.AccessLevel.TRUSTED_AND_UNTRUSTED_CONTEXTS,
-});
-
 chrome.action.onClicked.addListener((tab) => {
   if (tab.id) {
     chrome.sidePanel.open({ tabId: tab.id });
@@ -11,15 +6,16 @@ chrome.action.onClicked.addListener((tab) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setOptions({ enabled: true });
-  chrome.storage.session.setAccessLevel({
-    accessLevel: chrome.storage.AccessLevel.TRUSTED_AND_UNTRUSTED_CONTEXTS,
-  });
 });
 
-// Content script → service worker: open side panel after storing pending text
+// Content script sends text + OPEN_WITH_TEXT → store in session storage, open panel.
+// The service worker is always a trusted context and can always write to session storage.
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === "OPEN_WITH_TEXT" && sender.tab?.id) {
-    chrome.sidePanel.open({ tabId: sender.tab.id });
+    const tabId = sender.tab.id;
+    chrome.storage.session
+      .set({ pf_pending: msg.text as string })
+      .then(() => chrome.sidePanel.open({ tabId }));
   }
 });
 
