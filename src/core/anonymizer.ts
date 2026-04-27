@@ -385,6 +385,34 @@ export function reidentify(text: string, sessionKey: string): string {
   return result;
 }
 
+export function getSessionCounters(sessionKey: string): Map<string, number> {
+  return sessionCounters.get(sessionKey) ?? new Map();
+}
+
+export function setSessionMapping(sessionKey: string, mapping: SessionMapping): void {
+  sessionMappings.set(sessionKey, { ...mapping });
+}
+
+export function setSessionCounters(sessionKey: string, counters: Map<string, number>): void {
+  sessionCounters.set(sessionKey, new Map(counters));
+}
+
+// Adds a manually selected text to the session mapping and returns the new placeholder.
+// If the text is already mapped, returns the existing placeholder.
+export function addToSessionMapping(sessionKey: string, text: string, type = "CUSTOM"): string {
+  const existing = findExistingPlaceholder(sessionKey, text);
+  if (existing) return existing;
+  const placeholder = getNextPlaceholder(sessionKey, type);
+  getSessionMapping(sessionKey)[placeholder] = text;
+  return placeholder;
+}
+
+// Removes a placeholder from the session mapping (used when un-anonymizing a single token).
+export function removeFromSessionMapping(sessionKey: string, placeholder: string): void {
+  const mapping = getSessionMapping(sessionKey);
+  delete mapping[placeholder];
+}
+
 export function previewAnonymization(
   text: string,
   sessionKey: string,

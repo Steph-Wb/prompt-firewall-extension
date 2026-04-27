@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { anonymize, reidentify, clearAllMappings } from "../src/core/anonymizer";
+import {
+  anonymize, reidentify, clearAllMappings,
+  getSessionMapping, getSessionCounters,
+  setSessionMapping, setSessionCounters,
+  addToSessionMapping, removeFromSessionMapping,
+} from "../src/core/anonymizer";
 
 const KEY = "test";
 
@@ -100,5 +105,80 @@ describe("Leak-Check", () => {
     const text = "Von: anna@kanzlei.de An: bob@gericht.de";
     const { anonymizedText } = anonymize(text, KEY);
     expect(anonymizedText).not.toMatch(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+  });
+});
+
+describe("AI-Antwort Re-Identifizierung", () => {
+  it("re-identifiziert Platzhalter in einer KI-Antwort korrekt", () => {
+    anonymize("Mandant Max Müller (max@beispiel.de) aus Berlin.", KEY);
+    // Simulate AI response that contains placeholders mixed with new text
+    const aiResponse = "Für [[PERSON_1]] ([[EMAIL_1]]) aus [[ORT_1]] empfehle ich folgendes Vorgehen.";
+    const result = reidentify(aiResponse, KEY);
+    expect(result).toContain("Max Müller");
+    expect(result).toContain("max@beispiel.de");
+    expect(result).not.toContain("[[PERSON_1]]");
+    expect(result).not.toContain("[[EMAIL_1]]");
+  });
+
+  it("lässt unbekannte Platzhalter unverändert", () => {
+    anonymize("Frau Schmidt", KEY);
+    const aiResponse = "Text mit [[PERSON_1]] und [[UNBEKANNT_99]].";
+    const result = reidentify(aiResponse, KEY);
+    expect(result).not.toContain("[[PERSON_1]]");
+    expect(result).toContain("[[UNBEKANNT_99]]");
+  });
+});
+
+describe("Manuelle Selektion anonymisieren / un-anonymisieren", () => {
+  it("fügt manuell selektierten Text als neuen Platzhalter hinzu", () => {
+    // Use a term the anonymizer won't catch automatically
+    const { anonymizedText } = anonymize("Der Projektcode lautet ProjectX123.", KEY);
+    const placeholder = addToSessionMapping(KEY, "ProjectX123");
+    expect(placeholder).toMatch(/^\[\[CUSTOM_\d+\]\]$/);
+    const newOutput = anonymizedText.replace(/ProjectX123/g, placeholder);
+    expect(newOutput).not.toContain("ProjectX123");
+    expect(reidentify(newOutput, KEY)).toContain("ProjectX123");
+  });
+
+  it("gibt bestehenden Platzhalter zurück wenn Text bereits gemappt ist", () => {
+    anonymize("test@example.com", KEY);
+    const mapping = getSessionMapping(KEY);
+    const existingPh = Object.keys(mapping)[0];
+    const original = mapping[existingPh];
+    // Calling addToSessionMapping for same value returns existing placeholder
+    const ph = addToSessionMapping(KEY, original);
+    expect(ph).toBe(existingPh);
+  });
+
+  it("entfernt Platzhalter aus dem Mapping (un-anonymisieren)", () => {
+    anonymize("hans@firma.de", KEY);
+    const mapping = getSessionMapping(KEY);
+    const ph = Object.keys(mapping).find((k) => mapping[k] === "hans@firma.de")!;
+    expect(ph).toBeTruthy();
+    removeFromSessionMapping(KEY, ph);
+    expect(getSessionMapping(KEY)[ph]).toBeUndefined();
+  });
+});
+
+describe("Mapping Serialisierung (sessionStore Roundtrip)", () => {
+  it("mapping und counters überleben serialize/deserialize", () => {
+    anonymize("Herr Thomas Huber, IBAN DE89370400440532013000", KEY);
+
+    // Simulate what sessionStore.persistAll does
+    const mapping = { ...getSessionMapping(KEY) };
+    const counters = Object.fromEntries(getSessionCounters(KEY));
+
+    // Clear in-memory state to simulate panel close
+    clearAllMappings();
+
+    // Simulate what sessionStore.restoreAll does
+    setSessionMapping(KEY, mapping);
+    setSessionCounters(KEY, new Map(Object.entries(counters)));
+
+    // Re-identify should still work
+    const aiResponse = "Bitte zahlen Sie auf [[IBAN_1]] ein, Herr [[PERSON_1]].";
+    const result = reidentify(aiResponse, KEY);
+    expect(result).toContain("DE89370400440532013000");
+    expect(result).toContain("Thomas Huber");
   });
 });
