@@ -15,7 +15,11 @@ export const TRANSLATIONS = {
     "hint.interactive": "Wörter markieren → anonymisieren · Platzhalter anklicken → aufheben",
     "btn.copy": "Kopieren",
     "btn.copied": "Kopiert ✓",
+    "btn.send_to_chat": "In Chat einfügen",
+    "btn.sent_to_chat": "Eingefügt ✓",
     "label.entities": "Erkannte Entitäten ({count})",
+    "btn.add_to_dict": "Im Wörterbuch speichern",
+    "btn.added_to_dict": "Gespeichert ✓",
     "sec.reidentify": "3 · AI-Antwort re-identifizieren",
     "hint.reidentify": 'Antwort von ChatGPT / Claude einfügen – [[PERSON_1]] wird durch echte Werte ersetzt.',
     "ai.placeholder": "Antwort der KI hier einfügen…",
@@ -38,6 +42,8 @@ export const TRANSLATIONS = {
 
     // SettingsPanel
     "settings.language.label": "Sprache der Anonymisierung",
+    "settings.autoAddToDict.label": "Erkannte Begriffe automatisch ins Wörterbuch",
+    "settings.autoAddToDict.hint": "Jeder anonymisierte Begriff wird dauerhaft im Wörterbuch gespeichert und beim nächsten Mal automatisch erkannt.",
     "settings.save": "Einstellungen speichern",
     "settings.saved": "Gespeichert ✓",
     "settings.privacy":
@@ -64,7 +70,11 @@ export const TRANSLATIONS = {
     "hint.interactive": "Select words → anonymize · Click placeholder → restore",
     "btn.copy": "Copy",
     "btn.copied": "Copied ✓",
+    "btn.send_to_chat": "Insert into chat",
+    "btn.sent_to_chat": "Inserted ✓",
     "label.entities": "Detected entities ({count})",
+    "btn.add_to_dict": "Save to dictionary",
+    "btn.added_to_dict": "Saved ✓",
     "sec.reidentify": "3 · Re-identify AI response",
     "hint.reidentify": 'Paste the ChatGPT / Claude response – [[PERSON_1]] will be replaced with real values.',
     "ai.placeholder": "Paste AI response here…",
@@ -87,6 +97,8 @@ export const TRANSLATIONS = {
 
     // SettingsPanel
     "settings.language.label": "Anonymization language",
+    "settings.autoAddToDict.label": "Automatically save detected terms to dictionary",
+    "settings.autoAddToDict.hint": "Every anonymized term will be permanently stored in the dictionary and auto-detected next time.",
     "settings.save": "Save settings",
     "settings.saved": "Saved ✓",
     "settings.privacy":

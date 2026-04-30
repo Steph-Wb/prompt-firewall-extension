@@ -2,6 +2,7 @@
 
 export interface Settings {
   language: "de" | "en";
+  autoAddToDict: boolean;
 }
 
 export interface DictionaryItem {
@@ -19,6 +20,7 @@ const KEYS = {
 
 const DEFAULT_SETTINGS: Settings = {
   language: "de",
+  autoAddToDict: false,
 };
 
 function get<T>(key: string, fallback: T): Promise<T> {

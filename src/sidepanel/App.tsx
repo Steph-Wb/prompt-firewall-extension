@@ -7,7 +7,7 @@ import {
   addToSessionMapping, removeFromSessionMapping, getSessionMapping,
   type DetectedEntity,
 } from "@/core/anonymizer";
-import { getDictionary, getSettings, type DictionaryItem } from "@/core/storage";
+import { getDictionary, getSettings, saveDictionary, addDictionaryItem, type DictionaryItem } from "@/core/storage";
 import { persistAll, restoreAll, clearAll, type WorkflowState } from "@/core/sessionStore";
 import { LanguageProvider } from "@/i18n";
 
@@ -23,12 +23,38 @@ export default function App() {
   const [reidentified, setReidentified] = useState("");
   const [dictionary, setDictionary] = useState<DictionaryItem[]>([]);
   const [language, setLanguage] = useState<"de" | "en">("de");
+  const [autoAddToDict, setAutoAddToDict] = useState(false);
 
-  // Refs so storage listener always sees latest values without re-registering
+  // Refs so storage listener (empty-deps effect) always sees latest values
   const dictionaryRef = useRef<DictionaryItem[]>([]);
   const languageRef = useRef<"de" | "en">("de");
+  const autoAddToDictRef = useRef(false);
   useEffect(() => { dictionaryRef.current = dictionary; }, [dictionary]);
   useEffect(() => { languageRef.current = language; }, [language]);
+  useEffect(() => { autoAddToDictRef.current = autoAddToDict; }, [autoAddToDict]);
+
+  // ── Auto-add detected entities to the persistent dictionary ───────────────
+  async function autoAddEntitiesToDict(detectedEntities: DetectedEntity[]) {
+    if (!autoAddToDictRef.current || detectedEntities.length === 0) return;
+    const current = await getDictionary();
+    let updated = [...current];
+    let changed = false;
+    for (const entity of detectedEntities) {
+      if (!entity.original.trim()) continue;
+      const exists = updated.some(
+        (item) => item.term.toLowerCase() === entity.original.toLowerCase() && !item.isRegex
+      );
+      if (!exists) {
+        updated = addDictionaryItem(updated, { term: entity.original, category: entity.type, isRegex: false });
+        changed = true;
+      }
+    }
+    if (changed) {
+      setDictionary(updated);
+      dictionaryRef.current = updated;
+      await saveDictionary(updated);
+    }
+  }
 
   // On mount: load dictionary + settings + restore workflow state + mapping
   useEffect(() => {
@@ -41,6 +67,9 @@ export default function App() {
       dictionaryRef.current = dict;
       setLanguage(settings.language);
       languageRef.current = settings.language;
+      const aad = settings.autoAddToDict ?? false;
+      setAutoAddToDict(aad);
+      autoAddToDictRef.current = aad;
       if (workflow) {
         setInput(workflow.input);
         setOutput(workflow.output);
@@ -52,7 +81,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Storage listener: keep dictionary + language in sync + handle pending text
+  // Storage listener: keep dictionary + language + settings in sync + handle pending text
   useEffect(() => {
     const handler = (
       changes: Record<string, chrome.storage.StorageChange>,
@@ -64,10 +93,15 @@ export default function App() {
       }
 
       if (area === "local" && changes.pf_settings) {
-        const updated = changes.pf_settings.newValue as { language: "de" | "en" } | undefined;
+        const updated = changes.pf_settings.newValue as { language: "de" | "en"; autoAddToDict?: boolean } | undefined;
         if (updated?.language) {
           setLanguage(updated.language);
           languageRef.current = updated.language;
+        }
+        if (updated !== undefined) {
+          const val = updated.autoAddToDict ?? false;
+          setAutoAddToDict(val);
+          autoAddToDictRef.current = val;
         }
       }
 
@@ -90,10 +124,12 @@ export default function App() {
         setAiResponse("");
         setReidentified("");
         persistAll(SESSION_KEY, newState);
+        autoAddEntitiesToDict(result.entities);
       }
     };
     chrome.storage.onChanged.addListener(handler);
     return () => chrome.storage.onChanged.removeListener(handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Callbacks passed to AnonymizePanel ──────────────────────────────────
@@ -115,6 +151,7 @@ export default function App() {
       aiResponse: "",
       reidentified: "",
     });
+    autoAddEntitiesToDict(result.entities);
   };
 
   const handleAiResponseChange = (text: string) => {
@@ -157,6 +194,26 @@ export default function App() {
     persistAll(SESSION_KEY, { input, output: newOutput, entities: newEntities, aiResponse, reidentified });
   };
 
+  const handleAddEntityToDict = async (entity: DetectedEntity) => {
+    const current = await getDictionary();
+    const alreadyExists = current.some(
+      (item) => item.term.toLowerCase() === entity.original.toLowerCase() && !item.isRegex
+    );
+    if (alreadyExists) return;
+    const updated = addDictionaryItem(current, {
+      term: entity.original,
+      category: entity.type,
+      isRegex: false,
+    });
+    setDictionary(updated);
+    await saveDictionary(updated);
+  };
+
+  const handleSendToChat = () => {
+    if (!output) return;
+    chrome.runtime.sendMessage({ type: "WRITE_TO_CHAT", text: output });
+  };
+
   const handleReset = async () => {
     clearSessionMapping(SESSION_KEY);
     setInput("");
@@ -197,6 +254,8 @@ export default function App() {
           onAddSelection={handleAddSelection}
           onUnAnonymize={handleUnAnonymize}
           onReset={handleReset}
+          onSendToChat={handleSendToChat}
+          onAddEntityToDict={handleAddEntityToDict}
         />
       )}
       {tab === "dictionary" && <DictionaryPanel />}
