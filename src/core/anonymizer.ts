@@ -242,7 +242,7 @@ function applyEnglishNerPatterns(
 // ─── Schicht 2: NER-Simulation (German) ──────────────────────────────────
 
 const GERMAN_NAME_PATTERNS = [
-  /(?:Herr|Frau|Hr\.|Fr\.)\s+(?:Dr\.\s+)?(?:(?:von|van|de|zu)\s+)?[A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)?/g,
+  /(?:Herrn?|Herren|Hrn\.|Hr\.|Frau|Fr\.)\s+(?:Dr\.\s+)?(?:(?:von|van|de|zu)\s+)?[A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)?/g,
   /(?:Rechtsanwalt|Rechtsanwältin|RA|RAin|Notar|Notarin|Steuerberater|Steuerberaterin|StB)\s+(?:(?:von|van|de|zu)\s+)?[A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)?/g,
   /(?:Mandant(?:in)?|Kläger(?:in)?|Beklagte[rn]?|Zeuge|Zeugin)\s+(?:(?:von|van|de|zu)\s+)?[A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)?/g,
 ];
@@ -268,7 +268,7 @@ function applyNerPatterns(
     while ((match = regex.exec(text)) !== null) {
       const fullMatch = match[0];
       const nameOnly = fullMatch.replace(
-        /^(?:Herr|Frau|Hr\.|Fr\.|Dr\.|Rechtsanwalt|Rechtsanwältin|RA|RAin|Notar|Notarin|Steuerberater|Steuerberaterin|StB|Mandant(?:in)?|Kläger(?:in)?|Beklagte[rn]?|Zeuge|Zeugin)\s+/,
+        /^(?:Herrn?|Herren|Hrn\.|Hr\.|Frau|Fr\.|Dr\.|Rechtsanwalt|Rechtsanwältin|RA|RAin|Notar|Notarin|Steuerberater|Steuerberaterin|StB|Mandant(?:in)?|Kläger(?:in)?|Beklagte[rn]?|Zeuge|Zeugin)\s+/,
         ""
       );
       if (nameOnly.length > 2) {

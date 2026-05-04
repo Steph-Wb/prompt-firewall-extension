@@ -26,16 +26,21 @@ interface Props {
   onAddSelection: (text: string) => void;
   onUnAnonymize: (placeholder: string) => void;
   onReset: () => void;
+  onSendToChat: () => void;
+  onAddEntityToDict: (entity: DetectedEntity) => void;
 }
 
 export default function AnonymizePanel({
   input, output, entities, aiResponse, reidentified,
   onInputChange, onRunAnonymize, onAiResponseChange,
   onReidentifyResponse, onAddSelection, onUnAnonymize, onReset,
+  onSendToChat, onAddEntityToDict,
 }: Props) {
   const T = useT();
   const [copiedOutput, setCopiedOutput] = useState(false);
   const [copiedReidentified, setCopiedReidentified] = useState(false);
+  const [sentToChat, setSentToChat] = useState(false);
+  const [savedToDict, setSavedToDict] = useState<string | null>(null); // placeholder key
   const [textSelection, setTextSelection] = useState<string | null>(null);
   const [activePlaceholder, setActivePlaceholder] = useState<string | null>(null);
 
@@ -86,7 +91,7 @@ export default function AnonymizePanel({
     setActivePlaceholder(null);
   };
 
-  // ── Copy helpers ───────────────────────────────────────────────────────────
+  // ── Copy / send helpers ────────────────────────────────────────────────────
 
   const handleCopyOutput = async () => {
     await navigator.clipboard.writeText(output);
@@ -98,6 +103,18 @@ export default function AnonymizePanel({
     await navigator.clipboard.writeText(reidentified);
     setCopiedReidentified(true);
     setTimeout(() => setCopiedReidentified(false), 1500);
+  };
+
+  const handleSendToChat = () => {
+    onSendToChat();
+    setSentToChat(true);
+    setTimeout(() => setSentToChat(false), 1500);
+  };
+
+  const handleAddEntityToDict = (entity: DetectedEntity) => {
+    onAddEntityToDict(entity);
+    setSavedToDict(entity.placeholder);
+    setTimeout(() => setSavedToDict(null), 1500);
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -190,6 +207,15 @@ export default function AnonymizePanel({
             </button>
           </div>
 
+          <div className="btn-row" style={{ marginTop: 6 }}>
+            <button
+              className="btn btn-primary"
+              onClick={handleSendToChat}
+            >
+              {sentToChat ? T("btn.sent_to_chat") : T("btn.send_to_chat")}
+            </button>
+          </div>
+
           {entities.length > 0 && (
             <>
               <div className="label">{T("label.entities", { count: entities.length })}</div>
@@ -199,6 +225,14 @@ export default function AnonymizePanel({
                     <span className="type">{e.type}</span>
                     <span className="original">{e.original}</span>
                     <span>→ {e.placeholder}</span>
+                    <button
+                      className="btn btn-ghost"
+                      style={{ padding: "2px 7px", fontSize: 10, marginLeft: 4 }}
+                      title={T("btn.add_to_dict")}
+                      onClick={() => handleAddEntityToDict(e)}
+                    >
+                      {savedToDict === e.placeholder ? T("btn.added_to_dict") : "+"}
+                    </button>
                   </span>
                 ))}
               </div>

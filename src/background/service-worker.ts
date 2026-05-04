@@ -14,8 +14,18 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === "OPEN_WITH_TEXT" && sender.tab?.id) {
     const tabId = sender.tab.id;
     chrome.storage.session
-      .set({ pf_pending: msg.text as string })
+      .set({ pf_pending: msg.text as string, pf_source_tab: tabId })
       .then(() => chrome.sidePanel.open({ tabId }));
+  }
+
+  // Side panel asks to write anonymized text back into the source chat tab
+  if (msg.type === "WRITE_TO_CHAT") {
+    chrome.storage.session.get("pf_source_tab", (result) => {
+      const tabId = result.pf_source_tab as number | undefined;
+      if (tabId) {
+        chrome.tabs.sendMessage(tabId, { type: "INSERT_TEXT", text: msg.text as string });
+      }
+    });
   }
 });
 

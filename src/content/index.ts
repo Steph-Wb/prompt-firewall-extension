@@ -82,10 +82,34 @@ function injectFab(selector: string): void {
   });
 }
 
-// Listen for keyboard shortcut trigger from service worker
+function insertTextIntoElement(el: Element, text: string): void {
+  if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
+    el.focus();
+    el.value = text;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  } else {
+    // contenteditable (e.g. Gemini .ql-editor, Claude [data-testid="chat-input"])
+    (el as HTMLElement).focus();
+    document.execCommand("selectAll", false);
+    document.execCommand("insertText", false, text);
+    // Fallback: set innerText and fire input event
+    if ((el as HTMLElement).innerText !== text) {
+      (el as HTMLElement).innerText = text;
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true }));
+    }
+  }
+}
+
+// Listen for keyboard shortcut trigger and write-back from service worker
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "GRAB_AND_OPEN" && activeSelector) {
     captureAndSend(activeSelector);
+  }
+
+  if (msg.type === "INSERT_TEXT" && activeSelector) {
+    const el = document.querySelector(activeSelector);
+    if (el) insertTextIntoElement(el, msg.text as string);
   }
 });
 
